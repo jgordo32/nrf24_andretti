@@ -10,6 +10,7 @@
 #include <stdio.h>
 #include <avr/io.h>
 #include <avr/pgmspace.h>
+#include <util/delay.h>
 
 /* Scheduler include files */
 #include "FreeRTOS.h"
@@ -51,20 +52,35 @@ uint8_t prxAddr[5] = {0xE7, 0xE7, 0xE7, 0xE7, 0xE7};
 /* Main program loop */
 int main(void)
 {
-	/* Hardware initialization */
-	initPorts();
-	initTimers();
-	initRadio();
+    
+#if 1
+    /* Hardware initialization */
+    initPorts();
+    
+    initTimers();
+    initRadio();
 
-	rfQueue = xQueueCreate(64, sizeof(uint8_t));  //64 byte queue for RF transfer data
+    rfQueue = xQueueCreate(64, sizeof(uint8_t));  //64 byte queue for RF transfer data
 
-	xTaskCreate(radioTask, (const signed portCHAR *)"Radio", 218, NULL, 2, NULL);
+    xTaskCreate(radioTask, (const signed portCHAR *)"Radio", 218, NULL, 2, NULL);
     xTaskCreate(taskHeartbeat2, (const signed portCHAR *)"Blink2", 48, NULL, 1, NULL);
 
 
     vTaskStartScheduler();
+#else
+    //Make PortB.0 an output
+    DDRB |= _BV(0);
+    while(1)
+    {
+        // Toggle PortB.0
+        PORTB ^= _BV(0);
+        _delay_ms(500);
+    }    
 
-	return 0;
+    
+#endif
+
+    return 0;
 }
 
 void initRadio(void){
@@ -83,9 +99,9 @@ void taskHeartbeat2(void *pvParameters)
 	const portTickType xDelay = 500 / portTICK_RATE_MS;
 	while(1){
 		if(odd)
-			PORTC |= _BV(PORTC0);
+			PORTB |= _BV(PORTB0);
 		else
-			PORTC &= ~_BV(PORTC0);
+			PORTB &= ~_BV(PORTB0);
 		odd = !odd;
 		vTaskDelay(xDelay);
 		printf("Heart-beat!\n");
@@ -157,7 +173,7 @@ void radioTask(void *pvParameters)
 /* Init Ports */
 void initPorts(void){
 	// Port B initialization
-    // 0 - output 	- NC
+    // 0 - output 	- LED
     // 1 - output 	- rfen						- nRF CE
     // 2 - output 	- /SS						- nRF CSN
     // 3 - output  	- MOSI						- nRF MOSI
@@ -168,8 +184,8 @@ void initPorts(void){
 
 	// DDRB
     // 0b1110 1111 	= 0xEF
-	PORTB=0x00;
-	DDRB=0xEF;
+	PORTB = 0x00;
+	DDRB = 0xEF;
 
 	/* Initialize the hardware SPI module after setting the /SS to output */
 	SPCR |= (_BV(MSTR) | _BV(SPE)); //set to master and enable //enabling SPI messes up arduino LED which is on SCK line
@@ -178,34 +194,36 @@ void initPorts(void){
 
 
 	// Port C initialization
-    // 0 - output 	- heartbeat LED2
-    // 1 - output 	- NC
-    // 2 - output 	- NC
-    // 3 - output 	- rf strength blinker LED
+    // 0 - output 	- NC
+    // 1 - input 	- V potentiometer
+    // 2 - input 	- H potentiometer
+    // 3 - output 	- NC
     // 4 - output 	- NC
     // 5 - output 	- NC
-    // 6 - output 	- NC
+    // 6 - input 	- pulled up, /RESET
     // 7 - output 	- NC
 
 	// DDRC
-	// 0b1111 1111	= 0xFF
-	PORTC=0x00;
-	DDRC=0xFF;
+	// 0b1011 1001	= 0xB9
+	PORTC = 0x00;
+	DDRC = 0xB9;
 
 	// Port D initialization
     // 0 - input  	- uart RX
     // 1 - output  	- uart TX
     // 2 - input  	- RF interrupt INT0			- nRF IRQ
-    // 3 - output 	- NC
-    // 4 - output  	- NC
-    // 5 - output  	- NC
-    // 6 - output  	- NC
-    // 7 - output  	- NC
+    // 3 - input 	- joystick button
+    // 4 - input  	- button 1
+    // 5 - input  	- button 2
+    // 6 - input  	- button 3
+    // 7 - input  	- button 4
+    // NOTE: all buttons need to use internal pull-ups
 
 	// DDRD
-    // 0b1111 1010 	= 0xFA
-   	PORTD=0x00;
-	DDRD=0xFA;
+    // 0b0000 0010 	= 0x02
+   	PORTD = 0x00;
+	DDRD = 0x02;
+    PORTD = 0xF8; /* Enable pull-ups on the highest 5 pins for the buttons */
 
 	//TODO: don't hardcode this... make it baudrate generic from build settings maybe?
 	/* Initialize the hardware UART */
@@ -214,7 +232,7 @@ void initPorts(void){
 #if(BOARD_CONFIG == ARDUINO)
 	ubrr = ((configCPU_CLOCK_HZ / 16) / 57600) - 1;
 #elif(BOARD_CONFIG == AVR)
-	ubrr = ((configCPU_CLOCK_HZ / 16) / 38400) - 1;
+	ubrr = ((configCPU_CLOCK_HZ / 16) / 4800) - 1;
 #endif
 	UBRR0H = (uint8_t)(ubrr >> 8);
 	UBRR0L = (uint8_t)(ubrr);

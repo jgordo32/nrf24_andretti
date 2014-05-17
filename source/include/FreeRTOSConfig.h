@@ -79,7 +79,7 @@
 #else                                             // Define portUSE_TIMER0 to use the Arduino 328p & Timer0 
     #define portUSE_TIMER0  
 #if(BOARD_CONFIG == AVR)
-	#define configCPU_CLOCK_HZ		( ( unsigned long ) 8000000 ) // stand-alone atmega328P w/o crystal
+	#define configCPU_CLOCK_HZ		( ( unsigned long ) 2000000 ) // stand-alone atmega328P w/o crystal
 #elif(BOARD_CONFIG == ARDUINO)
 	#define configCPU_CLOCK_HZ		( ( unsigned long ) 16000000 ) // arduino
 #endif

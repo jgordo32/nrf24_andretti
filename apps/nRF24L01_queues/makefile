@@ -166,7 +166,7 @@ LDFLAGS += -lm
 ifeq ($(BOARD_CONFIG), AVR)
 	AVRDUDE_PROGRAMMER = usbtiny   	# UsbTinyISP
 	AVRDUDE_PORT=usb				# UsbTinyISP
-	AVRDUDE_SPEED=57600            
+	AVRDUDE_SPEED=115200            
 else
 ifeq ($(BOARD_CONFIG), ARDUINO)
 	AVRDUDE_PROGRAMMER=arduino		# Arduino
